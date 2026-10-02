@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0056A6">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Alistamiento">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
+<meta name="color-scheme" content="light">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Alistamiento – Chequeador</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,23 +17,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
-:root{--bg:#F3F7FB;--panel:#FFFFFF;--panel2:#F7FAFD;--ink:#0B2A4A;--muted:#50657A;--line:#C9D8E6;
+:root{--bg:#FFFFFF;--panel:#FFFFFF;--panel2:#F7FAFD;--ink:#0B2A4A;--muted:#50657A;--line:#C9D8E6;
 --blue:#0056A6;--blue-soft:#DCEBF8;--cyan:#11BFEF;--amber:#9A6A00;--amber-soft:#FFF4CC;--red:#B8322A;--green:#2E7D4F;--green-soft:#DDF1E4;
 --plate:#FFCA08;--plate-ink:#111;
 --sans:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;--cond:'Barlow Condensed','Arial Narrow',system-ui,sans-serif}
-@media (prefers-color-scheme:dark){:root{--bg:#081A2C;--panel:#0E2640;--panel2:#12304F;--ink:#E3EEF8;--muted:#8FA8C0;--line:#1F4166;
---blue:#4FA3E8;--blue-soft:#143A61;--cyan:#3FCFF5;--amber:#F0B429;--amber-soft:#3D3113;--red:#F07B72;--green:#6CC592;--green-soft:#173524}}
 *{box-sizing:border-box}
 html,body{min-height:100%}
 body{margin:0;font:400 16px/1.35 var(--sans);background:var(--bg);color:var(--ink);padding-bottom:env(safe-area-inset-bottom);-webkit-tap-highlight-color:transparent}
 h1,h2{font-family:var(--cond);font-weight:600;margin:0;line-height:1.15}
 .logo{display:inline-block;background:#fff;border-radius:8px;padding:4px 8px;line-height:0}.logo img{height:34px;width:auto;display:block}
 /* Login */
-.login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(120% 90% at 50% 0%,#0B4A8B 0%,#0B2A4A 55%,#081A2C 100%)}
+.login{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px;background:#fff}
 .login[hidden]{display:none}
-.box{width:100%;max-width:410px;background:var(--panel);border:1px solid var(--line);border-top:5px solid var(--blue);border-radius:12px;padding:26px 24px;box-shadow:0 24px 60px rgba(0,10,25,.55)}
+.box{width:100%;max-width:410px;background:var(--panel);border:1px solid var(--line);border-top:5px solid var(--blue);border-radius:12px;padding:26px 24px;box-shadow:0 8px 28px rgba(11,42,74,.15)}
 .brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;margin-bottom:18px}
-.brand .logo{padding:6px 10px}.brand .logo img{height:58px}
+.brand .logo{padding:0}.brand .logo img{height:58px}
 .brand .t{border-top:2px solid var(--cyan);padding-top:10px;width:100%}
 .brand h1{font-size:1.75rem;color:var(--ink)}.brand small{color:var(--muted);font-size:.95rem}
 .box p{color:var(--muted);margin:0 0 14px}
@@ -43,11 +42,11 @@ input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
 .btn.g{background:var(--green);color:#fff}.btn.o{background:transparent;color:var(--blue);border:2px solid var(--blue)}.btn:disabled{opacity:.4}.btn:active{filter:brightness(.92)}
 .box .btn{margin-top:4px}
 /* App */
-header{background:var(--blue);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:12px;border-bottom:3px solid var(--cyan)}
-header .logo img{height:30px}
+header{background:#fff;color:var(--ink);padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:12px;border-bottom:3px solid var(--cyan)}
+header .logo{padding:0}header .logo img{height:36px}
 header .t{border-left:2px solid var(--cyan);padding-left:12px;flex:1;min-width:0;line-height:1.15}
-header .t b{display:block;font:600 1.3rem var(--cond)}header .t small{display:block;opacity:.9;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-header button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:7px 12px;font:600 .95rem var(--sans)}
+header .t b{display:block;color:var(--blue);font:600 1.3rem var(--cond)}header .t small{display:block;color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header button{background:#fff;border:1.5px solid var(--blue);color:var(--blue);border-radius:8px;padding:7px 12px;font:600 .95rem var(--sans)}
 .tabs{display:flex;background:var(--panel);position:sticky;top:0;box-shadow:0 2px 6px rgba(0,30,60,.15);z-index:2;border-bottom:1px solid var(--line)}
 .tabs button{flex:1;border:0;background:none;padding:11px 4px;font:600 1.2rem var(--cond);letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;display:flex;justify-content:center;align-items:center;gap:6px}
 .tabs button[aria-selected=true]{color:var(--blue);border-color:var(--blue)}
@@ -91,7 +90,7 @@ const hm=t=>t?new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-d
 let me=null,F={},V=[],tab='recibo',canal=null,busy=false,pedido=null;
 function toast(m,e){const t=$('#toast');t.textContent=m;t.className=e?'e':'';t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500)}
 async function ok(p){const r=await p;if(r.error)throw new Error(r.error.message);return r.data}
-function pantalla(n){$('#login').hidden=n!=='login';$('#clave').hidden=n!=='clave';$('#app').hidden=n!=='app';document.querySelector('meta[name=theme-color]').content=n==='app'?'#0056A6':'#0B2A4A'}
+function pantalla(n){$('#login').hidden=n!=='login';$('#clave').hidden=n!=='clave';$('#app').hidden=n!=='app';document.querySelector('meta[name=theme-color]').content=n==='app'?'#FFFFFF':'#FFFFFF'}
 async function iniciar(){
   const {data}=await sb.auth.getSession();if(!data.session){pantalla('login');return}
   try{
