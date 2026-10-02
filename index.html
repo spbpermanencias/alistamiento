@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0056A6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Alistamiento">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alistamiento – Chequeador</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font:16px system-ui,Arial,sans-serif;background:#F2F5F9;color:#14213D;padding-bottom:env(safe-area-inset-bottom)}
+header{background:#0056A6;color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;justify-content:space-between;align-items:center}
+header b{font-size:18px}header small{display:block;opacity:.85;font-size:12px}header button{background:none;border:1px solid #fff8;color:#fff;border-radius:8px;padding:6px 10px}
+.tabs{display:flex;background:#fff;position:sticky;top:0;box-shadow:0 1px 4px #0002;z-index:2}
+.tabs button{flex:1;border:0;background:none;padding:12px 4px;font-size:15px;font-weight:600;color:#556;border-bottom:3px solid transparent}
+.tabs button[aria-selected=true]{color:#0056A6;border-color:#0056A6}.tabs b{display:inline-block;min-width:22px;padding:1px 6px;border-radius:12px;background:#dde3ec;font-size:13px}.tabs b.pend{background:#E65100;color:#fff}
+.wrap{padding:12px;max-width:560px;margin:auto}input[type=search],input[type=text],input[type=password]{width:100%;padding:12px;border:1px solid #c5cdd9;border-radius:10px;font-size:16px;margin-bottom:10px}
+.card{background:#fff;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px #0002}.l1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.plate{font:700 24px ui-monospace,monospace;letter-spacing:1px}.tn{background:#0056A6;color:#fff;border-radius:6px;padding:2px 8px;font-weight:700}
+.sub{font-size:14px;color:#556;margin-top:4px}.ok{color:#2e7d32;font-weight:600}.wait{color:#b26a00;font-weight:600}
+.btn{width:100%;margin-top:10px;padding:14px;border:0;border-radius:10px;font-size:18px;font-weight:700;background:#0056A6;color:#fff}.btn.g{background:#2e7d32}.btn.o{background:#fff;color:#0056A6;border:2px solid #0056A6}.btn:disabled{opacity:.45}
+.empty{text-align:center;color:#778;padding:30px 10px}.center{max-width:360px;margin:12vh auto;padding:18px}.center h1{font-size:22px;color:#0056A6}.err{color:#c62828;min-height:20px;margin:6px 0}
+#toast{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));background:#14213D;color:#fff;padding:12px;border-radius:10px;display:none;z-index:9}#toast.e{background:#c62828}
+</style>
+</head>
+<body>
+<div id="login" class="center"><h1>Alistamiento · Chequeador</h1>
+<form id="fl"><input id="u" type="text" placeholder="Usuario" autocomplete="username" autocapitalize="none"><input id="p" type="password" placeholder="Clave" autocomplete="current-password"><div class="err" id="le"></div><button class="btn">Entrar</button></form></div>
+<div id="clave" class="center" hidden><h1>Cambia tu clave</h1><p>Es tu primer ingreso: define una clave nueva (mínimo 6 caracteres).</p>
+<form id="fc"><input id="n1" type="password" placeholder="Clave nueva" autocomplete="new-password"><input id="n2" type="password" placeholder="Repite la clave" autocomplete="new-password"><div class="err" id="ce"></div><button class="btn">Guardar clave</button></form></div>
+<div id="app" hidden>
+<header><div><b>Alistamiento</b><small id="who"></small></div><button id="out">Salir</button></header>
+<nav class="tabs"><button data-t="recibo">Recibo <b>0</b></button><button data-t="entrega">Entrega <b>0</b></button><button data-t="salida">Salida <b>0</b></button></nav>
+<div class="wrap"><input id="q" type="search" placeholder="Buscar placa" autocapitalize="characters"><div id="list"></div></div>
+</div>
+<div id="toast"></div>
+<script>
+const SB_URL='https://rhsrwpxqadbczrkelsxi.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoc3J3cHhxYWRiY3pya2Vsc3hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1MTQ1NzksImV4cCI6MjEwNjA5MDU3OX0.s1SGtp7fJrD95PX9CchR_wHrtYyyNRCGcyf0KIzEXfQ';
+const DOM='@spb.local';
+const ET={recibo:'ingate',entrega:'alistamiento',salida:'entrega_operador'};
+const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm=t=>String(t||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const hm=t=>t?new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}):'';
+let me=null,F={},V=[],tab='recibo',canal=null,busy=false,pedido=null;
+function toast(m,e){const t=$('#toast');t.textContent=m;t.className=e?'e':'';t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500)}
+async function ok(p){const r=await p;if(r.error)throw new Error(r.error.message);return r.data}
+function pantalla(n){$('#login').hidden=n!=='login';$('#clave').hidden=n!=='clave';$('#app').hidden=n!=='app'}
+async function iniciar(){
+  const {data}=await sb.auth.getSession();if(!data.session){pantalla('login');return}
+  try{
+    const p=await ok(sb.from('perfiles').select('id,usuario,nombre,rol_id,activo,debe_cambiar_clave').eq('id',data.session.user.id).maybeSingle());
+    const r=p&&await ok(sb.from('roles').select('*').eq('id',p.rol_id).maybeSingle());
+    if(!p||!p.activo||!r||!r.activo){await sb.auth.signOut();pantalla('login');$('#le').textContent=!p?'Este usuario no tiene perfil en el sistema.':!p.activo?'Este usuario está desactivado.':'El rol de este usuario está desactivado.';return}
+    if(!(r.puede_chequeador||r.puede_admin)){await sb.auth.signOut();pantalla('login');$('#le').textContent='El usuario '+p.usuario.toUpperCase()+' tiene el rol '+(r.nombre||r.id)+', que no tiene permiso de Chequeador. Entra con un usuario de rol CHEQUEADOR.';return}
+    me=p;$('#who').textContent=p.nombre||p.usuario;
+    if(p.debe_cambiar_clave){pantalla('clave');return}
+    pantalla('app');await cargar();suscribir();
+  }catch(e){pantalla('login');$('#le').textContent=e.message}
+}
+async function cargar(){
+  const [vs,fs]=await Promise.all([
+    ok(sb.from('visitas').select('id,placa,dia,turno,operadores,bls,etapa_actual,chequeador_id,chequeador_relevo_id,visita_etapas(etapa_id,inicio,fin)').eq('estado','en_proceso').in('etapa_actual',Object.values(ET))),
+    ok(sb.from('funcionarios').select('id,nombre'))]);
+  F={};(fs||[]).forEach(f=>F[f.id]=f.nombre);
+  V=(vs||[]).map(v=>{const e={};(v.visita_etapas||[]).forEach(x=>e[x.etapa_id]=x);return {...v,e}});
+  render();
+}
+function pedir(){clearTimeout(pedido);pedido=setTimeout(()=>cargar().catch(()=>{}),400)}
+function suscribir(){
+  if(canal)return;
+  canal=sb.channel('alist').on('postgres_changes',{event:'*',schema:'public',table:'visitas'},pedir).subscribe();
+  setInterval(()=>{if(!$('#app').hidden)pedir()},20000);
+}
+function lista(t){return V.filter(v=>v.etapa_actual===ET[t]&&v.e[ET[t]]).sort((a,b)=>String(a.e[ET[t]].inicio).localeCompare(String(b.e[ET[t]].inicio)))}
+function render(){
+  const qn=norm($('#q').value);
+  document.querySelectorAll('.tabs button').forEach(b=>{b.setAttribute('aria-selected',b.dataset.t===tab);const n=lista(b.dataset.t).length,x=b.querySelector('b');x.textContent=n;x.classList.toggle('pend',n>0)});
+  const all=lista(tab),l=qn?all.filter(v=>norm(v.placa).includes(qn)):all;
+  const sin=all.filter(v=>!v.chequeador_id);
+  const cab=v=>`<div class="l1">${v.turno?`<span class="tn">T${esc(v.turno)}</span>`:''}<span class="plate">${esc(v.placa)}</span></div><div class="sub">${esc((v.operadores||[]).join(', '))}</div>${(v.bls||[]).length?`<div class="sub">BL: ${esc(v.bls.join(', '))}</div>`:''}`;
+  const t=x=>`<b data-s="${esc(x)}">00:00:00</b>`;
+  let h='';
+  if(tab==='recibo')h=l.map(v=>`<div class="card">${cab(v)}<div class="sub">En Ingreso al sistema ${t(v.e.ingate.inicio)}</div><button class="btn" data-a="recibo" data-id="${v.id}">Recibo</button></div>`).join('');
+  else if(tab==='entrega')h=l.map(v=>{const n=v.chequeador_id&&F[v.chequeador_id];
+    return `<div class="card">${cab(v)}${n?`<div class="sub ok">👷 ${esc(n)}, buscando mercancía</div>`:`<div class="sub wait">⏳ Esperando chequeador, fila #${sin.indexOf(v)+1}</div>`}${v.chequeador_relevo_id?`<div class="sub ok">🔁 Relevo: ${esc(F[v.chequeador_relevo_id]||'')}</div>`:''}<div class="sub">Recibido ${hm(v.e.alistamiento.inicio)} · alistamiento ${t(v.e.alistamiento.inicio)}</div><button class="btn g" data-a="entrega" data-id="${v.id}" ${n?'':'disabled'}>Entrega</button>${v.chequeador_relevo_id?`<button class="btn o" data-a="cambio" data-id="${v.id}">🔁 Cambio de turno</button>`:''}</div>`}).join('');
+  else h=l.map(v=>`<div class="card">${cab(v)}${v.chequeador_id&&F[v.chequeador_id]?`<div class="sub">Entregó: ${esc(F[v.chequeador_id])}</div>`:''}<div class="sub">En Entrega operador ${t(v.e.entrega_operador.inicio)}</div><button class="btn" data-a="salida" data-id="${v.id}">Salida</button></div>`).join('');
+  $('#list').innerHTML=h||`<div class="empty">${qn&&all.length?'Ninguna placa coincide.':{recibo:'No hay vehículos por recibir.',entrega:'No hay placas en alistamiento.',salida:'No hay placas en Entrega operador.'}[tab]}</div>`;
+  tick();
+}
+function tick(){const n=Date.now();document.querySelectorAll('[data-s]').forEach(b=>{const s=Math.max(0,Math.floor((n-new Date(b.dataset.s))/1000));b.textContent=[Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(x=>String(x).padStart(2,'0')).join(':')})}
+setInterval(tick,1000);
+async function accion(a,id){
+  const v=V.find(x=>x.id===id);if(!v||busy)return;busy=true;
+  try{
+    if(a==='recibo'){
+      const antes=lista('recibo').filter(x=>x.id!==id&&String(x.e.ingate.inicio)<String(v.e.ingate.inicio)).map(x=>x.placa);
+      const msg=antes.length?`⚠ ${v.placa} no es el siguiente en la fila.\nAntes debía recibirse: ${antes.join(', ')}.\nSe avisará a Registro. ¿Recibir de todos modos?`:`¿Recibo del vehículo ${v.placa}?`;
+      if(!confirm(msg))return;
+      await ok(sb.rpc('chequeador_confirmar_recibo',{p_visita:id}));
+      if(antes.length)await sb.rpc('chequeador_recibo_fuera_orden',{p_visita:id,p_antes:antes});
+      await sb.rpc('asignar_chequeadores');toast(v.placa+' recibido en alistamiento');
+    }else if(a==='entrega'){
+      if(!v.chequeador_id){toast('Aún no tiene chequeador asignado',true);return}
+      if(!confirm(`¿Entrega de ${v.placa}?`))return;
+      await ok(sb.rpc('chequeador_confirmar_entrega',{p_visita:id,p_funcionario:v.chequeador_id}));
+      await sb.rpc('asignar_chequeadores');toast(v.placa+' pasó a Entrega operador');
+    }else if(a==='cambio'){
+      if(!confirm(`¿Cambio de turno de ${v.placa}?`))return;
+      await ok(sb.rpc('cambio_turno_visita',{p_visita:id}));toast('Cambio de turno hecho');
+    }else if(a==='salida'){
+      if(!confirm(`¿Salida de ${v.placa}?`))return;
+      await ok(sb.rpc('chequeador_salida',{p_visita:id}));toast(v.placa+' pasó a Salida sistema');
+    }
+  }catch(e){toast(e.message||'No se pudo completar la acción',true)}
+  finally{busy=false;await cargar().catch(()=>{})}
+}
+$('#fl').addEventListener('submit',async e=>{e.preventDefault();$('#le').textContent='';
+  const u=$('#u').value.trim().toLowerCase(),p=$('#p').value.toUpperCase();if(!u||!p){$('#le').textContent='Escribe usuario y clave.';return}
+  const r=await sb.auth.signInWithPassword({email:u+DOM,password:p});
+  if(r.error){$('#le').textContent='Usuario o clave incorrectos.';return}
+  $('#p').value='';iniciar()});
+$('#fc').addEventListener('submit',async e=>{e.preventDefault();const a=$('#n1').value.toUpperCase(),b=$('#n2').value.toUpperCase();
+  if(a.length<6){$('#ce').textContent='Mínimo 6 caracteres.';return}if(a!==b){$('#ce').textContent='Las claves no coinciden.';return}
+  const r=await sb.auth.updateUser({password:a});if(r.error){$('#ce').textContent=r.error.message;return}
+  await sb.rpc('marcar_clave_cambiada');iniciar()});
+$('#out').addEventListener('click',async()=>{if(canal){sb.removeChannel(canal);canal=null}await sb.auth.signOut();location.reload()});
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b){tab=b.dataset.t;render()}});
+$('#q').addEventListener('input',render);
+$('#list').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b)accion(b.dataset.a,b.dataset.id)});
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+iniciar();
+</script>
+</body>
+</html>
