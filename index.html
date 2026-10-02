@@ -39,7 +39,7 @@ h1,h2{font-family:var(--cond);font-weight:600;margin:0;line-height:1.15}
 label{display:block;font-size:.9rem;color:var(--muted);margin-bottom:12px}
 label input{margin:4px 0 0;color:var(--ink)}
 .box input{padding:8px 10px;border:1px solid var(--line);border-radius:6px;text-transform:uppercase;margin-bottom:0}
-.err{color:var(--red);min-height:20px;margin:2px 0 6px;font-weight:500}
+.err{color:var(--red);min-height:20px;margin:2px 0 12px;font-weight:500;font-size:.95rem}
 .primary{width:100%;padding:10px;border:0;border-radius:6px;background:var(--blue);color:#fff;font:600 1rem var(--sans);cursor:pointer}.primary:active{filter:brightness(.92)}
 .mode{font-size:.85rem;color:var(--muted);margin:14px 0 0}
 input[type=search],input[type=text],input[type=password]{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font:500 16px var(--sans);margin-bottom:10px;background:var(--panel);color:var(--ink);outline:none}
@@ -112,7 +112,7 @@ async function iniciar(){
     const p=await ok(sb.from('perfiles').select('id,usuario,nombre,rol_id,activo,debe_cambiar_clave').eq('id',data.session.user.id).maybeSingle());
     const r=p&&await ok(sb.from('roles').select('*').eq('id',p.rol_id).maybeSingle());
     if(!p||!p.activo||!r||!r.activo){await sb.auth.signOut();pantalla('login');$('#le').textContent=!p?'Este usuario no tiene perfil en el sistema.':!p.activo?'Este usuario está desactivado.':'El rol de este usuario está desactivado.';return}
-    if(!(r.puede_chequeador||r.puede_admin)){await sb.auth.signOut();pantalla('login');$('#le').textContent='El usuario '+p.usuario.toUpperCase()+' tiene el rol '+(r.nombre||r.id)+', que no tiene permiso de Chequeador. Entra con un usuario de rol CHEQUEADOR.';return}
+    if(!(r.puede_chequeador||r.puede_admin)){await sb.auth.signOut();pantalla('login');$('#le').textContent='Este usuario no tiene acceso a esta aplicación.';return}
     me=p;$('#who').textContent=p.nombre||p.usuario;
     if(p.debe_cambiar_clave){pantalla('clave');return}
     pantalla('app');await cargar();suscribir();
