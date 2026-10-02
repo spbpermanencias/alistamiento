@@ -57,8 +57,8 @@ async function iniciar(){
   try{
     const p=await ok(sb.from('perfiles').select('id,usuario,nombre,rol_id,activo,debe_cambiar_clave').eq('id',data.session.user.id).maybeSingle());
     const r=p&&await ok(sb.from('roles').select('*').eq('id',p.rol_id).maybeSingle());
-    if(!p||!p.activo||!r||!r.activo){await sb.auth.signOut();pantalla('login');$('#le').textContent='Usuario sin acceso o desactivado.';return}
-    if(!(r.puede_chequeador||r.puede_admin)){await sb.auth.signOut();pantalla('login');$('#le').textContent='Tu rol no tiene acceso a Alistamiento.';return}
+    if(!p||!p.activo||!r||!r.activo){await sb.auth.signOut();pantalla('login');$('#le').textContent=!p?'Este usuario no tiene perfil en el sistema.':!p.activo?'Este usuario está desactivado.':'El rol de este usuario está desactivado.';return}
+    if(!(r.puede_chequeador||r.puede_admin)){await sb.auth.signOut();pantalla('login');$('#le').textContent='El usuario '+p.usuario.toUpperCase()+' tiene el rol '+(r.nombre||r.id)+', que no tiene permiso de Chequeador. Entra con un usuario de rol CHEQUEADOR.';return}
     me=p;$('#who').textContent=p.nombre||p.usuario;
     if(p.debe_cambiar_clave){pantalla('clave');return}
     pantalla('app');await cargar();suscribir();
