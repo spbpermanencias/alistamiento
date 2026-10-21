@@ -149,7 +149,7 @@ async function iniciar(n=0){
 }
 async function cargar(){
   const [vs,fs]=await Promise.all([
-    ok(sb.from('visitas').select('id,placa,dia,turno,operadores,bls,etapa_actual,chequeador_id,chequeador_relevo_id,puerta_asignada,visita_etapas(etapa_id,inicio,fin,puerta)').eq('estado','en_proceso').in('etapa_actual',Object.values(ET))),
+    ok(sb.from('visitas').select('id,placa,dia,turno,operadores,bls,etapa_actual,pesaje,chequeador_id,chequeador_relevo_id,puerta_asignada,visita_etapas(etapa_id,inicio,fin,puerta)').eq('estado','en_proceso').in('etapa_actual',Object.values(ET))),
     ok(sb.from('funcionarios').select('id,nombre'))]);
   F={};(fs||[]).forEach(f=>F[f.id]=f.nombre);
   V=(vs||[]).map(v=>{const e={};(v.visita_etapas||[]).forEach(x=>e[x.etapa_id]=x);return {...v,e}});
@@ -161,7 +161,9 @@ function suscribir(){
   canal=sb.channel('alist').on('postgres_changes',{event:'*',schema:'public',table:'visitas'},pedir).subscribe();
   setInterval(()=>{if(!$('#app').hidden)pedir()},20000);
 }
-function lista(t){return V.filter(v=>v.etapa_actual===ET[t]&&v.e[ET[t]]).sort((a,b)=>String(a.e[ET[t]].inicio).localeCompare(String(b.e[ET[t]].inicio)))}
+/* PESAJE: un vehículo que viene de pesaje ('pesando' o 'en_puerta') NO se recibe hasta que Seguridad le dé ingreso por puerta */
+const enPesaje=v=>v.pesaje==='pesando'||v.pesaje==='en_puerta';
+function lista(t){return V.filter(v=>v.etapa_actual===ET[t]&&v.e[ET[t]]&&!enPesaje(v)).sort((a,b)=>String(a.e[ET[t]].inicio).localeCompare(String(b.e[ET[t]].inicio)))}
 function render(){
   const qn=norm($('#q').value);
   document.querySelectorAll('.tabs button').forEach(b=>{b.setAttribute('aria-selected',b.dataset.t===tab);const n=lista(b.dataset.t).length,x=b.querySelector('b');x.textContent=n;x.classList.toggle('pend',n>0)});
