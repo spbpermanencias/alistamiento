@@ -83,6 +83,11 @@ dialog#dMensaje::backdrop{background:rgba(10,20,26,.62)}
 .mtxt{margin:0 0 12px;padding:12px 14px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;font-size:1.15rem;line-height:1.4;white-space:pre-wrap;word-break:break-word}
 .mnote{margin:0 0 6px;font-size:.9rem;color:var(--muted)}.mmas{margin:8px 0 0;text-align:center;font-size:.85rem;font-weight:600;color:var(--blue)}.mmas[hidden]{display:none}
 .mact{padding:0 16px 16px}.mact .btn{margin-top:0}
+.cuad{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 8px;padding:8px 12px;border-radius:8px;background:#B71C1C;color:#fff;font:800 1.7rem/1.1 var(--cond);letter-spacing:.12em;border:3px solid #FFCA08;box-shadow:0 0 0 2px #111;animation:cuadp 1.2s ease-in-out infinite}
+.cuad .ci{font-size:1.9rem}.cuad small{flex-basis:100%;font:600 .85rem var(--sans);letter-spacing:0;opacity:.95}
+.card.hascuad{border-color:#B71C1C;border-left-color:#B71C1C;box-shadow:0 0 0 2px #B71C1C,0 1px 4px rgba(0,30,60,.12)}
+@keyframes cuadp{0%,100%{background:#B71C1C}50%{background:#E53935}}
+@media (prefers-reduced-motion:reduce){.cuad{animation:none}}
 </style>
 </head>
 <body>
@@ -124,7 +129,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const norm=t=>String(t||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const hm=t=>t?new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}):'';
-let me=null,F={},V=[],tab='recibo',canal=null,busy=false,pedido=null;
+let cuadVista=null,me=null,F={},V=[],tab='recibo',canal=null,busy=false,pedido=null;
 function toast(m,e){const t=$('#toast');t.textContent=m;t.className=e?'e':'';t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500)}
 async function ok(p){const r=await p;if(r.error)throw new Error(r.error.message);return r.data}
 function pantalla(n){$('#login').hidden=n!=='login';$('#clave').hidden=n!=='clave';$('#app').hidden=n!=='app';document.querySelector('meta[name=theme-color]').content=n==='app'?'#FFFFFF':'#0B2A4A'}
@@ -149,10 +154,11 @@ async function iniciar(n=0){
 }
 async function cargar(){
   const [vs,fs]=await Promise.all([
-    ok(sb.from('visitas').select('id,placa,dia,turno,operadores,bls,etapa_actual,pesaje,chequeador_id,chequeador_relevo_id,puerta_asignada,visita_etapas(etapa_id,inicio,fin,puerta)').eq('estado','en_proceso').in('etapa_actual',Object.values(ET))),
+    ok(sb.from('visitas').select('id,placa,dia,turno,operadores,bls,etapa_actual,pesaje,chequeador_id,chequeador_relevo_id,puerta_asignada,cuadrilla,visita_etapas(etapa_id,inicio,fin,puerta)').eq('estado','en_proceso').in('etapa_actual',Object.values(ET))),
     ok(sb.from('funcionarios').select('id,nombre'))]);
   F={};(fs||[]).forEach(f=>F[f.id]=f.nombre);
   V=(vs||[]).map(v=>{const e={};(v.visita_etapas||[]).forEach(x=>e[x.etapa_id]=x);return {...v,e}});
+  {const ahora=new Set(V.filter(v=>v.cuadrilla).map(v=>v.id));if(cuadVista){const nuevas=V.filter(v=>v.cuadrilla&&!cuadVista.has(v.id));if(nuevas.length){toast('🦺 CUADRILLA: '+nuevas.map(v=>v.placa).join(', '));try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}}cuadVista=ahora}
   render();
 }
 function pedir(){clearTimeout(pedido);pedido=setTimeout(()=>cargar().catch(()=>{}),400)}
@@ -171,13 +177,14 @@ function render(){
   const sin=all.filter(v=>!v.chequeador_id);
   const PTN={'1':'BSE','2':'P1','3':'P2'};
   const ptDe=v=>String(((v.e.ingreso_puerta||{}).puerta)||v.puerta_asignada||'1');   // puerta por la que entró (si no, la asignada)
-  const cab=v=>{const pt=ptDe(v);return `<div class="l1">${v.turno?`<span class="tn">T${esc(v.turno)}</span>`:''}<span class="plate ${pt==='1'?'zb':'zp'}">${esc(v.placa)}</span><span class="ptl ${pt==='1'?'zb':'zp'}" title="Entró por ${pt==='1'?'la Puerta BSE':'la Puerta '+esc(pt)}">${esc(PTN[pt]||'P'+pt)}</span></div><div class="sub">${esc((v.operadores||[]).join(', '))}</div>${(v.bls||[]).length?`<div class="sub">BL: ${esc(v.bls.join(', '))}</div>`:''}`};
+  const cuad=v=>v.cuadrilla?`<div class="cuad" role="alert"><span class="ci" aria-hidden="true">🦺</span>CUADRILLA<small>Esta placa tiene servicio de cuadrilla</small></div>`:'';
+  const cab=v=>{const pt=ptDe(v);return `${cuad(v)}<div class="l1">${v.turno?`<span class="tn">T${esc(v.turno)}</span>`:''}<span class="plate ${pt==='1'?'zb':'zp'}">${esc(v.placa)}</span><span class="ptl ${pt==='1'?'zb':'zp'}" title="Entró por ${pt==='1'?'la Puerta BSE':'la Puerta '+esc(pt)}">${esc(PTN[pt]||'P'+pt)}</span></div><div class="sub">${esc((v.operadores||[]).join(', '))}</div>${(v.bls||[]).length?`<div class="sub">BL: ${esc(v.bls.join(', '))}</div>`:''}`};
   const t=x=>`<b data-s="${esc(x)}">00:00:00</b>`;
   let h='';
-  if(tab==='recibo')h=l.map(v=>`<div class="card ${ptDe(v)==='1'?'zb':'zp'}">${cab(v)}<div class="sub">En Ingreso al sistema ${t(v.e.ingate.inicio)}</div><button class="btn" data-a="recibo" data-id="${v.id}">Recibo</button></div>`).join('');
+  if(tab==='recibo')h=l.map(v=>`<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}<div class="sub">En Ingreso al sistema ${t(v.e.ingate.inicio)}</div><button class="btn" data-a="recibo" data-id="${v.id}">Recibo</button></div>`).join('');
   else if(tab==='entrega')h=l.map(v=>{const n=v.chequeador_id&&F[v.chequeador_id];
-    return `<div class="card ${ptDe(v)==='1'?'zb':'zp'}">${cab(v)}${n?`<div class="sub ok">👷 ${esc(n)}, buscando mercancía</div>`:`<div class="sub wait">⏳ Esperando chequeador, fila #${sin.indexOf(v)+1}</div>`}${v.chequeador_relevo_id?`<div class="sub ok">🔁 Relevo: ${esc(F[v.chequeador_relevo_id]||'')}</div>`:''}<div class="sub">Recibido ${hm(v.e.alistamiento.inicio)} · alistamiento ${t(v.e.alistamiento.inicio)}</div><button class="btn g" data-a="entrega" data-id="${v.id}" ${n?'':'disabled'}>Entrega</button>${v.chequeador_relevo_id?`<button class="btn o" data-a="cambio" data-id="${v.id}">🔁 Cambio de turno</button>`:''}</div>`}).join('');
-  else h=l.map(v=>`<div class="card ${ptDe(v)==='1'?'zb':'zp'}">${cab(v)}${v.chequeador_id&&F[v.chequeador_id]?`<div class="sub">Entregó: ${esc(F[v.chequeador_id])}</div>`:''}<div class="sub">En Entrega operador ${t(v.e.entrega_operador.inicio)}</div><button class="btn" data-a="salida" data-id="${v.id}">Salida</button></div>`).join('');
+    return `<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}${n?`<div class="sub ok">👷 ${esc(n)}, buscando mercancía</div>`:`<div class="sub wait">⏳ Esperando chequeador, fila #${sin.indexOf(v)+1}</div>`}${v.chequeador_relevo_id?`<div class="sub ok">🔁 Relevo: ${esc(F[v.chequeador_relevo_id]||'')}</div>`:''}<div class="sub">Recibido ${hm(v.e.alistamiento.inicio)} · alistamiento ${t(v.e.alistamiento.inicio)}</div><button class="btn g" data-a="entrega" data-id="${v.id}" ${n?'':'disabled'}>Entrega</button>${v.chequeador_relevo_id?`<button class="btn o" data-a="cambio" data-id="${v.id}">🔁 Cambio de turno</button>`:''}</div>`}).join('');
+  else h=l.map(v=>`<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}${v.chequeador_id&&F[v.chequeador_id]?`<div class="sub">Entregó: ${esc(F[v.chequeador_id])}</div>`:''}<div class="sub">En Entrega operador ${t(v.e.entrega_operador.inicio)}</div><button class="btn" data-a="salida" data-id="${v.id}">Salida</button></div>`).join('');
   $('#list').innerHTML=h||`<div class="empty">${qn&&all.length?'Ninguna placa coincide.':{recibo:'No hay vehículos por recibir.',entrega:'No hay placas en alistamiento.',salida:'No hay placas en Entrega operador.'}[tab]}</div>`;
   tick();
 }
