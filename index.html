@@ -162,7 +162,7 @@ function suscribir(){
   setInterval(()=>{if(!$('#app').hidden)pedir()},20000);
 }
 /* PESAJE: un vehículo que viene de pesaje ('pesando' o 'en_puerta') NO se recibe hasta que Seguridad le dé ingreso por puerta */
-const enPesaje=v=>v.pesaje==='pesando'||v.pesaje==='en_puerta';
+const enPesaje=v=>(v.pesaje==='pesando'||v.pesaje==='en_puerta')&&v.etapa_actual===ET.ingate;   // solo registros antiguos: el pesaje nuevo se ingresa por el llamado normal
 function lista(t){return V.filter(v=>v.etapa_actual===ET[t]&&v.e[ET[t]]&&!enPesaje(v)).sort((a,b)=>String(a.e[ET[t]].inicio).localeCompare(String(b.e[ET[t]].inicio)))}
 function render(){
   const qn=norm($('#q').value);
