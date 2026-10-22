@@ -88,6 +88,48 @@ dialog#dMensaje::backdrop{background:rgba(10,20,26,.62)}
 .card.hascuad{border-color:#B71C1C;border-left-color:#B71C1C;box-shadow:0 0 0 2px #B71C1C,0 1px 4px rgba(0,30,60,.12)}
 @keyframes cuadp{0%,100%{background:#B71C1C}50%{background:#E53935}}
 @media (prefers-reduced-motion:reduce){.cuad{animation:none}}
+
+/* ===== REDISEÑO TARJETAS (proporción y orden) ===== */
+:root{--r:14px;--sh:0 1px 2px rgba(0,30,60,.08),0 6px 16px -8px rgba(0,30,60,.18)}
+body{background:#F2F6FA}
+/* Encabezado y pestañas: sin choques de texto */
+header{gap:10px;padding-left:12px;padding-right:12px}
+header .logo img{height:30px}
+header .t{min-width:0}
+header .t b{font-size:1.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header button{flex:none;padding:6px 12px;font-size:.9rem}
+.tabs button{font-size:1.02rem;letter-spacing:.02em;padding:10px 2px;gap:5px}
+.tabs b{min-width:22px;font-size:.9rem;padding:0 6px}
+.wrap{padding:12px 12px 24px}
+input[type=search]{border-radius:12px;padding:11px 14px;margin-bottom:12px;background:#fff}
+/* Tarjeta */
+.card{background:#fff!important;border:1px solid #D7E3EE;border-left:0;border-radius:var(--r);padding:12px 14px 14px 18px;margin-bottom:12px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:#1565C0}
+.card.zp::before{background:#E65100}
+.card.hascuad{border:1px solid #B71C1C;box-shadow:0 0 0 1px #B71C1C,var(--sh)}
+.card.hascuad::before{background:#B71C1C}
+/* Fila de cabecera en UNA sola línea: [T] [PLACA ........] [PUERTA] */
+.l1{flex-wrap:nowrap;gap:8px;align-items:stretch}
+.l1 .tn,.l1 .plate,.l1 .ptl{height:42px;border-radius:8px}
+.l1 .tn{order:0;flex:none;min-width:48px;padding:0 10px;font-size:1.2rem;border:0}
+.l1 .plate{order:1;flex:1 1 auto;min-width:0;padding:0 8px;font-size:1.65rem;letter-spacing:.1em;border:2px solid #111}
+.l1 .ptl{order:2;flex:none;width:56px;padding:0 10px;font-size:1.15rem;border:0}
+/* Datos */
+.sub{margin-top:8px;font-size:.95rem;line-height:1.3}
+.card .l1+.sub{margin-top:10px;font:600 1rem/1.25 var(--cond);letter-spacing:.02em;color:var(--ink);text-transform:uppercase}
+.card .l1+.sub+.sub{margin-top:2px;font-size:.85rem;color:var(--muted)}
+.sub b{white-space:nowrap;font:700 1.25rem var(--cond);letter-spacing:.02em;color:var(--blue)}
+.wait,.ok{display:flex;align-items:center;gap:6px;font-size:.92rem;border-radius:8px}
+.ok{background:var(--green-soft);padding:5px 10px}
+.wait{padding:5px 10px}
+.sub:has(b){font-size:.88rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding-top:8px;border-top:1px dashed #D7E3EE}
+/* Botones */
+.btn{margin-top:12px;padding:0;height:46px;border-radius:10px;font-size:1.1rem;letter-spacing:.06em;display:flex;align-items:center;justify-content:center}
+.btn.o{height:42px;font-size:1rem;margin-top:8px;border-width:1.5px}
+/* Banner de cuadrilla: compacto pero inconfundible */
+.cuad{margin:-2px 0 10px;padding:6px 10px;gap:8px;border-width:2px;border-radius:8px;font-size:1.25rem;letter-spacing:.1em;box-shadow:none}
+.cuad .ci{font-size:1.35rem}
+.cuad small{font-size:.78rem}
 </style>
 </head>
 <body>
