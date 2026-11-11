@@ -130,6 +130,11 @@ input[type=search]{border-radius:12px;padding:11px 14px;margin-bottom:12px;backg
 .cuad{margin:-2px 0 10px;padding:6px 10px;gap:8px;border-width:2px;border-radius:8px;font-size:1.25rem;letter-spacing:.1em;box-shadow:none}
 .cuad .ci{font-size:1.35rem}
 .cuad small{font-size:.78rem}
+.fr{background:var(--green-soft);border:1px solid #9BCFB0;border-radius:12px;padding:8px 12px;margin-bottom:12px}
+.frh{font:700 1.05rem var(--cond);letter-spacing:.04em;text-transform:uppercase;color:var(--green)}
+.frp{background:#FFD54F;color:#3E2A00;border-radius:6px;padding:0 6px;font-size:.8rem}
+.frl{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:4px 0;border-top:1px dashed #9BCFB0;font-size:.92rem}
+.frl:first-of-type{border-top:0}.frl small{color:var(--muted);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -171,7 +176,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const norm=t=>String(t||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const hm=t=>t?new Date(t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}):'';
-let cuadVista=null,me=null,F={},V=[],tab='recibo',canal=null,busy=false,pedido=null;
+let cuadVista=null,me=null,F={},V=[],tab='recibo',canal=null,busy=false,pedido=null,PAR=[],PRM={};
 function toast(m,e){const t=$('#toast');t.textContent=m;t.className=e?'e':'';t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500)}
 async function ok(p){const r=await p;if(r.error)throw new Error(r.error.message);return r.data}
 function pantalla(n){$('#login').hidden=n!=='login';$('#clave').hidden=n!=='clave';$('#app').hidden=n!=='app';document.querySelector('meta[name=theme-color]').content=n==='app'?'#FFFFFF':'#0B2A4A'}
@@ -199,6 +204,12 @@ async function cargar(){
     ok(sb.from('visitas').select('id,placa,dia,turno,operadores,bls,etapa_actual,pesaje,chequeador_id,chequeador_relevo_id,puerta_asignada,cuadrilla,visita_etapas(etapa_id,inicio,fin,puerta)').eq('estado','en_proceso').in('etapa_actual',Object.values(ET))),
     ok(sb.from('funcionarios').select('id,nombre'))]);
   F={};(fs||[]).forEach(f=>F[f.id]=f.nombre);
+  try{
+    const [pr,pa]=await Promise.all([
+      sb.from('parametros').select('prueba_traslape,traslape_antes_min,traslape_despues_min').eq('id',1).maybeSingle(),
+      sb.rpc('cq_parejas_hoy')]);
+    PRM=(pr&&pr.data)||{};PAR=(pa&&Array.isArray(pa.data))?pa.data:[];
+  }catch(e){}
   V=(vs||[]).map(v=>{const e={};(v.visita_etapas||[]).forEach(x=>e[x.etapa_id]=x);return {...v,e}});
   {const ahora=new Set(V.filter(v=>v.cuadrilla).map(v=>v.id));if(cuadVista){const nuevas=V.filter(v=>v.cuadrilla&&!cuadVista.has(v.id));if(nuevas.length){toast('🦺 CUADRILLA: '+nuevas.map(v=>v.placa).join(', '));try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}}cuadVista=ahora}
   render();
@@ -212,6 +223,22 @@ function suscribir(){
 /* PESAJE: un vehículo que viene de pesaje ('pesando' o 'en_puerta') NO se recibe hasta que Seguridad le dé ingreso por puerta */
 const enPesaje=v=>(v.pesaje==='pesando'||v.pesaje==='en_puerta')&&v.etapa_actual===ET.ingate;   // solo registros antiguos: el pesaje nuevo se ingresa por el llamado normal
 function lista(t){return V.filter(v=>v.etapa_actual===ET[t]&&v.e[ET[t]]&&!enPesaje(v)).sort((a,b)=>String(a.e[ET[t]].inicio).localeCompare(String(b.e[ET[t]].inicio)))}
+function franja(){
+  const [hh,mi]=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Bogota'}).split(':').map(Number);
+  const m=(hh%24)*60+mi,antes=Number(PRM.traslape_antes_min??60),desp=Number(PRM.traslape_despues_min??60);
+  const dif=t=>((m-t+1440+720)%1440)-720,P=new Map(),key=x=>String(x.sid)+'|'+String(x.eid);
+  PAR.forEach(x=>{const d=dif(Number(x.t_min));if(d>=-antes&&d<=desp)P.set(key(x),x)});
+  if(PRM.prueba_traslape){            // prueba: cambio más cercano de cada zona
+    const best={};PAR.forEach(x=>{const d=Math.abs(dif(Number(x.t_min)));if(!(x.zona in best)||d<best[x.zona].d)best[x.zona]={d,t:Number(x.t_min)}});
+    PAR.forEach(x=>{if(best[x.zona]&&Number(x.t_min)===best[x.zona].t)P.set(key(x),x)});
+  }
+  V.forEach(v=>{if(v.etapa_actual===ET.entrega&&v.chequeador_id&&v.chequeador_relevo_id){const x={sid:v.chequeador_id,eid:v.chequeador_relevo_id};if(!P.has(key(x)))P.set(key(x),x)}});
+  if(!P.size)return '';
+  const nm=id=>esc(F[String(id)]||'—');
+  const pl=id=>V.filter(v=>v.etapa_actual===ET.entrega&&String(v.chequeador_id)===String(id)).map(v=>v.placa);
+  return `<div class="fr"><div class="frh">🔁 Cambio de turno${PRM.prueba_traslape?' <span class="frp">🧪 PRUEBA</span>':''}</div>`+
+    [...P.values()].map(x=>{const p=pl(x.sid);return `<div class="frl"><span><b>👷 ${nm(x.sid)}</b> entrega a <b>${nm(x.eid)}</b></span><small>${p.length?esc(p.join(', ')):'sin vehículo'}</small></div>`}).join('')+`</div>`;
+}
 function render(){
   const qn=norm($('#q').value);
   document.querySelectorAll('.tabs button').forEach(b=>{b.setAttribute('aria-selected',b.dataset.t===tab);const n=lista(b.dataset.t).length,x=b.querySelector('b');x.textContent=n;x.classList.toggle('pend',n>0)});
@@ -227,7 +254,7 @@ function render(){
   else if(tab==='entrega')h=l.map(v=>{const n=v.chequeador_id&&F[v.chequeador_id];
     return `<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}${n?`<div class="sub ok">👷 ${esc(n)}, buscando mercancía</div>`:`<div class="sub wait">⏳ Esperando chequeador, fila #${sin.indexOf(v)+1}</div>`}${v.chequeador_relevo_id?`<div class="sub ok">🔁 Relevo: ${esc(F[v.chequeador_relevo_id]||'')}</div>`:''}<div class="sub">Recibido ${hm(v.e.alistamiento.inicio)} · alistamiento ${t(v.e.alistamiento.inicio)}</div><button class="btn g" data-a="entrega" data-id="${v.id}" ${n?'':'disabled'}>Entrega</button>${v.chequeador_relevo_id?`<button class="btn o" data-a="cambio" data-id="${v.id}">🔁 Cambio de turno</button>`:''}</div>`}).join('');
   else h=l.map(v=>`<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}${v.chequeador_id&&F[v.chequeador_id]?`<div class="sub">Entregó: ${esc(F[v.chequeador_id])}</div>`:''}<div class="sub">En Entrega operador ${t(v.e.entrega_operador.inicio)}</div><button class="btn" data-a="salida" data-id="${v.id}">Salida</button></div>`).join('');
-  $('#list').innerHTML=h||`<div class="empty">${qn&&all.length?'Ninguna placa coincide.':{recibo:'No hay vehículos por recibir.',entrega:'No hay placas en alistamiento.',salida:'No hay placas en Entrega operador.'}[tab]}</div>`;
+  $('#list').innerHTML=(tab==='entrega'?franja():'')+(h||`<div class="empty">${qn&&all.length?'Ninguna placa coincide.':{recibo:'No hay vehículos por recibir.',entrega:'No hay placas en alistamiento.',salida:'No hay placas en Entrega operador.'}[tab]}</div>`);
   tick();
 }
 function tick(){const n=Date.now();document.querySelectorAll('[data-s]').forEach(b=>{const s=Math.max(0,Math.floor((n-new Date(b.dataset.s))/1000));b.textContent=[Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(x=>String(x).padStart(2,'0')).join(':')})}
