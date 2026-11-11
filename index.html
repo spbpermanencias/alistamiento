@@ -223,7 +223,7 @@ function suscribir(){
 /* PESAJE: un vehículo que viene de pesaje ('pesando' o 'en_puerta') NO se recibe hasta que Seguridad le dé ingreso por puerta */
 const enPesaje=v=>(v.pesaje==='pesando'||v.pesaje==='en_puerta')&&v.etapa_actual===ET.ingate;   // solo registros antiguos: el pesaje nuevo se ingresa por el llamado normal
 function lista(t){return V.filter(v=>v.etapa_actual===ET[t]&&v.e[ET[t]]&&!enPesaje(v)).sort((a,b)=>String(a.e[ET[t]].inicio).localeCompare(String(b.e[ET[t]].inicio)))}
-function franja(){
+function parejasVentana(){
   const [hh,mi]=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Bogota'}).split(':').map(Number);
   const m=(hh%24)*60+mi,antes=Number(PRM.traslape_antes_min??60),desp=Number(PRM.traslape_despues_min??60);
   const dif=t=>((m-t+1440+720)%1440)-720,P=new Map(),key=x=>String(x.sid)+'|'+String(x.eid);
@@ -233,6 +233,10 @@ function franja(){
     PAR.forEach(x=>{if(best[x.zona]&&Number(x.t_min)===best[x.zona].t)P.set(key(x),x)});
   }
   V.forEach(v=>{if(v.etapa_actual===ET.entrega&&v.chequeador_id&&v.chequeador_relevo_id){const x={sid:v.chequeador_id,eid:v.chequeador_relevo_id};if(!P.has(key(x)))P.set(key(x),x)}});
+  return P;
+}
+function franja(){
+  const P=parejasVentana();
   if(!P.size)return '';
   const nm=id=>esc(F[String(id)]||'—');
   const pl=id=>V.filter(v=>v.etapa_actual===ET.entrega&&String(v.chequeador_id)===String(id)).map(v=>v.placa);
@@ -244,6 +248,8 @@ function render(){
   document.querySelectorAll('.tabs button').forEach(b=>{b.setAttribute('aria-selected',b.dataset.t===tab);const n=lista(b.dataset.t).length,x=b.querySelector('b');x.textContent=n;x.classList.toggle('pend',n>0)});
   const all=lista(tab),l=qn?all.filter(v=>norm(v.placa).includes(qn)):all;
   const sin=all.filter(v=>!v.chequeador_id);
+  const salientes=tab==='entrega'?new Set([...parejasVentana().values()].map(x=>String(x.sid))):new Set();
+  const puedeCambio=v=>!!v.chequeador_relevo_id||(v.chequeador_id&&salientes.has(String(v.chequeador_id)));
   const PTN={'1':'BSE','2':'P1','3':'P2'};
   const ptDe=v=>String(((v.e.ingreso_puerta||{}).puerta)||v.puerta_asignada||'1');   // puerta por la que entró (si no, la asignada)
   const cuad=v=>v.cuadrilla?`<div class="cuad" role="alert"><span class="ci" aria-hidden="true">🦺</span>CUADRILLA<small>Esta placa tiene servicio de cuadrilla</small></div>`:'';
@@ -252,7 +258,7 @@ function render(){
   let h='';
   if(tab==='recibo')h=l.map(v=>`<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}<div class="sub">En Ingreso al sistema ${t(v.e.ingate.inicio)}</div><button class="btn" data-a="recibo" data-id="${v.id}">Recibo</button></div>`).join('');
   else if(tab==='entrega')h=l.map(v=>{const n=v.chequeador_id&&F[v.chequeador_id];
-    return `<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}${n?`<div class="sub ok">👷 ${esc(n)}, buscando mercancía</div>`:`<div class="sub wait">⏳ Esperando chequeador, fila #${sin.indexOf(v)+1}</div>`}${v.chequeador_relevo_id?`<div class="sub ok">🔁 Relevo: ${esc(F[v.chequeador_relevo_id]||'')}</div>`:''}<div class="sub">Recibido ${hm(v.e.alistamiento.inicio)} · alistamiento ${t(v.e.alistamiento.inicio)}</div><button class="btn g" data-a="entrega" data-id="${v.id}" ${n?'':'disabled'}>Entrega</button>${v.chequeador_relevo_id?`<button class="btn o" data-a="cambio" data-id="${v.id}">🔁 Cambio de turno</button>`:''}</div>`}).join('');
+    return `<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}${n?`<div class="sub ok">👷 ${esc(n)}, buscando mercancía</div>`:`<div class="sub wait">⏳ Esperando chequeador, fila #${sin.indexOf(v)+1}</div>`}${v.chequeador_relevo_id?`<div class="sub ok">🔁 Relevo: ${esc(F[v.chequeador_relevo_id]||'')}</div>`:''}<div class="sub">Recibido ${hm(v.e.alistamiento.inicio)} · alistamiento ${t(v.e.alistamiento.inicio)}</div><button class="btn g" data-a="entrega" data-id="${v.id}" ${n?'':'disabled'}>Entrega</button>${puedeCambio(v)?`<button class="btn o" data-a="cambio" data-id="${v.id}">🔁 Cambio de turno</button>`:''}</div>`}).join('');
   else h=l.map(v=>`<div class="card ${ptDe(v)==='1'?'zb':'zp'}${v.cuadrilla?' hascuad':''}">${cab(v)}${v.chequeador_id&&F[v.chequeador_id]?`<div class="sub">Entregó: ${esc(F[v.chequeador_id])}</div>`:''}<div class="sub">En Entrega operador ${t(v.e.entrega_operador.inicio)}</div><button class="btn" data-a="salida" data-id="${v.id}">Salida</button></div>`).join('');
   $('#list').innerHTML=(tab==='entrega'?franja():'')+(h||`<div class="empty">${qn&&all.length?'Ninguna placa coincide.':{recibo:'No hay vehículos por recibir.',entrega:'No hay placas en alistamiento.',salida:'No hay placas en Entrega operador.'}[tab]}</div>`);
   tick();
@@ -278,6 +284,7 @@ async function accion(a,id){
       await sb.rpc('asignar_chequeadores');toast(v.placa+' pasó a Entrega operador');
     }else if(a==='cambio'){
       if(!confirm(`¿Cambio de turno de ${v.placa}?`))return;
+      if(!v.chequeador_relevo_id){try{await sb.rpc('asignar_cambio_turno_auto')}catch(e){}}
       await ok(sb.rpc('cambio_turno_visita',{p_visita:id}));toast('Cambio de turno hecho');
     }else if(a==='salida'){
       if(!confirm(`¿Salida de ${v.placa}?`))return;
